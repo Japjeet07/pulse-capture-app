@@ -10,7 +10,7 @@ import {
   Calendar,
   Filter
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import AdminHeader from "@/components/AdminHeader";
 
 const Analytics = () => {
   // Mock data for charts and metrics
@@ -26,35 +26,7 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
-      {/* Header */}
-      <header className="bg-card/80 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-display">Analytics Dashboard</h1>
-              <p className="text-muted-foreground">Insights and performance metrics for your lead pipeline</p>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <Button variant="outline" className="hover-lift">
-                <Calendar className="w-4 h-4 mr-2" />
-                Last 30 Days
-              </Button>
-              
-              <Button variant="outline" className="hover-lift">
-                <Filter className="w-4 h-4 mr-2" />
-                Filters
-              </Button>
-              
-              <Button asChild className="btn-primary">
-                <Link to="/dashboard">
-                  Back to Dashboard
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminHeader />
 
       <div className="container mx-auto px-6 py-8 space-y-8">
         {/* Key Metrics */}

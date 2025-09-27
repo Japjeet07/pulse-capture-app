@@ -6,15 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Search, 
   Filter, 
-  Plus, 
   Users, 
-  TrendingUp, 
   Mail,
   MoreHorizontal,
   ArrowUpRight,
   Calendar
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import AdminHeader from "@/components/AdminHeader";
 import LeadDetailDrawer from "@/components/LeadDetailDrawer";
 
 // Mock data for leads
@@ -114,39 +112,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
-      {/* Header */}
-      <header className="bg-card/80 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-display">Lead Dashboard</h1>
-              <p className="text-muted-foreground">Manage and convert your leads with AI-powered insights</p>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <Button asChild variant="outline" className="hover-lift">
-                <Link to="/analytics">
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Analytics
-                </Link>
-              </Button>
-              
-              <Button asChild variant="outline" className="hover-lift">
-                <Link to="/settings">
-                  Settings
-                </Link>
-              </Button>
-              
-              <Button asChild className="btn-primary">
-                <Link to="/">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Lead
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminHeader />
 
       <div className="container mx-auto px-6 py-8 space-y-8">
         {/* Stats Cards */}

@@ -16,7 +16,7 @@ import {
   Save,
   TestTube
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import AdminHeader from "@/components/AdminHeader";
 import { useToast } from "@/hooks/use-toast";
 
 const Settings = () => {
@@ -56,32 +56,7 @@ Your Sales Team`
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
-      {/* Header */}
-      <header className="bg-card/80 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-display flex items-center gap-3">
-                <SettingsIcon className="w-8 h-8 text-primary" />
-                Settings
-              </h1>
-              <p className="text-muted-foreground">Configure your lead management preferences</p>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <Button variant="outline" className="hover-lift">
-                Reset to Defaults
-              </Button>
-              
-              <Button asChild className="btn-primary">
-                <Link to="/dashboard">
-                  Back to Dashboard
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminHeader />
 
       <div className="container mx-auto px-6 py-8 max-w-4xl space-y-8">
         {/* Integrations */}
