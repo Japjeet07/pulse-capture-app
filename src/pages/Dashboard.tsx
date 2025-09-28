@@ -81,13 +81,16 @@ const mockLeads = [
   }
 ];
 
-const filters = ["All", "Hot", "Warm", "Cold"];
+const filters = ["All", "New", "Scored", "Outreach Sent", "Responded", "Converted", "Lost"];
 
-const getStatusColor = (fitBand: string) => {
-  switch (fitBand) {
-    case "High": return "bg-red-500/10 text-red-500 border-red-500/20";
-    case "Medium": return "bg-yellow-500/10 text-yellow-600 border-yellow-500/20";
-    case "Low": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "new": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
+    case "scored": return "bg-yellow-500/10 text-yellow-600 border-yellow-500/20";
+    case "outreach_sent": return "bg-orange-500/10 text-orange-500 border-orange-500/20";
+    case "responded": return "bg-green-500/10 text-green-500 border-green-500/20";
+    case "converted": return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+    case "lost": return "bg-red-500/10 text-red-500 border-red-500/20";
     default: return "bg-muted text-muted-foreground";
   }
 };
@@ -98,12 +101,15 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Map filter names to fit_band values
-  const getFitBandFromFilter = (filter: string) => {
+  // Map filter names to status values
+  const getStatusFromFilter = (filter: string) => {
     switch (filter) {
-      case "Hot": return "High";
-      case "Warm": return "Medium";
-      case "Cold": return "Low";
+      case "New": return "new";
+      case "Scored": return "scored";
+      case "Outreach Sent": return "outreach_sent";
+      case "Responded": return "responded";
+      case "Converted": return "converted";
+      case "Lost": return "lost";
       default: return undefined;
     }
   };
@@ -112,7 +118,7 @@ const Dashboard = () => {
   const { data: leadsData, loading: leadsLoading, error: leadsError, refetch: refetchLeads } = useLeads({
     page: currentPage,
     limit: 50,
-    fit_band: activeFilter === "All" ? undefined : getFitBandFromFilter(activeFilter),
+    status: activeFilter === "All" ? undefined : getStatusFromFilter(activeFilter),
     search: searchQuery || undefined,
     sort_by: 'created_at',
     sort_order: 'desc'
@@ -274,8 +280,8 @@ const Dashboard = () => {
                         <div className="font-medium">{lead.company || 'N/A'}</div>
                       </td>
                       <td className="p-4">
-                        <Badge className={getStatusColor(lead.fit_band || 'Low')}>
-                          {lead.fit_band || 'LOW'}
+                        <Badge className={getStatusColor(lead.status || 'new')}>
+                          {lead.status || 'NEW'}
                         </Badge>
                       </td>
                       <td className="p-4">

@@ -35,7 +35,6 @@ class ApiService {
     if (requiresAuth) {
       if (this.token) {
         headers.Authorization = `Bearer ${this.token}`;
-        console.log('Using token for auth:', this.token.substring(0, 20) + '...');
       } else {
         console.error('No token available for authenticated request');
         throw new Error('Access token required');
@@ -125,10 +124,36 @@ class ApiService {
 
   // Lead methods
   async submitLead(leadData: LeadSubmission): Promise<ApiResponse<{ leadId: string }>> {
-    return this.request<{ leadId: string }>(API_CONFIG.ENDPOINTS.SUBMIT_LEAD, {
-      method: 'POST',
-      body: JSON.stringify(leadData),
-    });
+    try {
+      const url = buildApiUrl(API_CONFIG.ENDPOINTS.SUBMIT_LEAD);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          ...this.getHeaders(false), // Lead submission should not require authentication
+        },
+        body: JSON.stringify(leadData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+
+      // Backend returns { success: true, message: '...', leadId: '...' }
+      // Convert to expected format: { success: true, data: { leadId: '...' } }
+      return {
+        success: data.success,
+        data: { leadId: data.leadId },
+        message: data.message
+      };
+    } catch (error) {
+      console.error('Lead submission failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
   }
 
   async getLead(leadId: string): Promise<ApiResponse<{ lead: Lead }>> {

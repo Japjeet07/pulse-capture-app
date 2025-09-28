@@ -6,8 +6,8 @@ const Landing = () => {
   return (
     <main className="min-h-screen">
       <HeroSection />
-      <FeaturesSection />
-      <TestimonialsSection />
+      {/* <FeaturesSection /> */}
+      {/* <TestimonialsSection /> */}
     </main>
   );
 };

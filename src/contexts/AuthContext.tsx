@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiService } from '@/services/api';
 import { User } from '@/config/api';
@@ -21,9 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedToken = localStorage.getItem('auth-token');
     const storedUser = localStorage.getItem('auth-user');
     
-    console.log('Auth check - Token:', storedToken ? 'Present' : 'Missing');
-    console.log('Auth check - User:', storedUser ? 'Present' : 'Missing');
-    
     if (storedToken && storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
@@ -35,8 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('auth-token');
         localStorage.removeItem('auth-user');
       }
-    } else {
-      console.log('No stored auth found');
     }
     setIsLoading(false);
   }, []);

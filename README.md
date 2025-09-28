@@ -246,25 +246,4 @@ pulse-capture-app/
 3. **AI Features**: Extend `backend/src/services/aiService.js`
 4. **Frontend Components**: Add to `src/components/`
 
-## 📄 License
 
-MIT License - see LICENSE file for details.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📞 Support
-
-For issues and questions:
-- Create an issue in the repository
-- Check the troubleshooting section
-- Review the logs for error details
-
----
-
-**Built with ❤️ for the AI Lead Qualifier & Outreach Micro-App assignment**

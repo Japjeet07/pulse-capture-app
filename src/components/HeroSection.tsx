@@ -141,9 +141,8 @@ const HeroSection = () => {
           <div className="animate-slide-up delay-300">
             <Card className="card-premium p-8 space-y-6 backdrop-blur-sm">
               <div className="text-center space-y-2">
-                <h2 className="text-display">Start Your Free Trial</h2>
                 <p className="text-body text-muted-foreground">
-                  Experience premium lead management in under 2 minutes
+                  Convert Lead as per AI based scoring
                 </p>
               </div>
 
@@ -151,7 +150,7 @@ const HeroSection = () => {
                 <div className="grid md:grid-cols-2 gap-4">
                   <Input
                     name="name"
-                    placeholder="Your Name"
+                    placeholder="Lead Name"
                     value={formData.name}
                     onChange={handleInputChange}
                     required
@@ -160,7 +159,7 @@ const HeroSection = () => {
                   <Input
                     name="email"
                     type="email"
-                    placeholder="Email Address"
+                    placeholder="Lead Address"
                     value={formData.email}
                     onChange={handleInputChange}
                     required
@@ -178,7 +177,7 @@ const HeroSection = () => {
                 
                 <Textarea
                   name="message"
-                  placeholder="Tell us about your lead generation goals..."
+                  placeholder="Problem Statement"
                   value={formData.message}
                   onChange={handleInputChange}
                   rows={3}
@@ -190,14 +189,12 @@ const HeroSection = () => {
                   className="btn-primary w-full text-lg py-6 group"
                   disabled={loading}
                 >
-                  {loading ? "Submitting..." : "Get Started Free"}
+                  {loading ? "Submitting..." : "Submit"}
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </form>
 
-              <p className="text-xs text-muted-foreground text-center">
-                No credit card required. Setup in 2 minutes. Cancel anytime.
-              </p>
+             
             </Card>
           </div>
         </div>
