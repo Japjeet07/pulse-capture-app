@@ -11,18 +11,61 @@ import {
   Filter
 } from "lucide-react";
 import AdminHeader from "@/components/AdminHeader";
+import { useStats } from "@/hooks/useApi";
 
 const Analytics = () => {
-  // Mock data for charts and metrics
-  const metrics = {
-    totalLeads: 1247,
-    conversionRate: 24.5,
-    outreachSent: 892,
-    outreachPending: 355,
-    hotLeads: 38,
-    warmLeads: 42,
-    coldLeads: 20
+  const { data: statsData, loading: statsLoading, error: statsError } = useStats();
+  
+  const stats = statsData?.stats || {
+    total_leads: 0,
+    new_leads: 0,
+    scored_leads: 0,
+    high_priority: 0,
+    medium_priority: 0,
+    low_priority: 0,
+    outreach_sent: 0,
+    responded: 0,
+    converted: 0,
+    avg_score: 0
   };
+
+  const recentActivity = statsData?.recent_activity || [];
+  const sourceStats = statsData?.source_stats || [];
+
+  // Calculate metrics from real data
+  const totalLeads = Number(stats.total_leads) || 0;
+  const converted = Number(stats.converted) || 0;
+  const outreachSent = Number(stats.outreach_sent) || 0;
+  const responded = Number(stats.responded) || 0;
+  const avgScore = Number(stats.avg_score) || 0;
+  
+  const conversionRate = totalLeads > 0 ? Math.round((converted / totalLeads) * 100 * 10) / 10 : 0;
+  const outreachPending = totalLeads - outreachSent;
+  const hotLeads = totalLeads > 0 ? Math.round((Number(stats.high_priority) / totalLeads) * 100) : 0;
+  const warmLeads = totalLeads > 0 ? Math.round((Number(stats.medium_priority) / totalLeads) * 100) : 0;
+  const coldLeads = totalLeads > 0 ? Math.round((Number(stats.low_priority) / totalLeads) * 100) : 0;
+
+  if (statsLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
+        <AdminHeader />
+        <div className="container mx-auto px-6 py-8">
+          <div className="text-center text-muted-foreground">Loading analytics...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (statsError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
+        <AdminHeader />
+        <div className="container mx-auto px-6 py-8">
+          <div className="text-center text-red-500">Error loading analytics: {statsError}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
@@ -38,11 +81,11 @@ const Analytics = () => {
               </div>
               <div className="flex items-center gap-1 text-green-600 text-sm">
                 <ArrowUpRight className="w-4 h-4" />
-                +12.5%
+                {stats.new_leads || 0} new
               </div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{metrics.totalLeads.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{totalLeads.toLocaleString()}</div>
               <div className="text-sm text-muted-foreground">Total Leads</div>
             </div>
           </Card>
@@ -54,11 +97,11 @@ const Analytics = () => {
               </div>
               <div className="flex items-center gap-1 text-green-600 text-sm">
                 <ArrowUpRight className="w-4 h-4" />
-                +3.2%
+                {stats.converted || 0} converted
               </div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{metrics.conversionRate}%</div>
+              <div className="text-2xl font-bold">{conversionRate}%</div>
               <div className="text-sm text-muted-foreground">Conversion Rate</div>
             </div>
           </Card>
@@ -70,11 +113,11 @@ const Analytics = () => {
               </div>
               <div className="flex items-center gap-1 text-green-600 text-sm">
                 <ArrowUpRight className="w-4 h-4" />
-                +18.7%
+                {stats.responded || 0} responses
               </div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{metrics.outreachSent}</div>
+              <div className="text-2xl font-bold">{outreachSent}</div>
               <div className="text-sm text-muted-foreground">Outreach Sent</div>
             </div>
           </Card>
@@ -86,11 +129,11 @@ const Analytics = () => {
               </div>
               <div className="flex items-center gap-1 text-red-600 text-sm">
                 <ArrowDownRight className="w-4 h-4" />
-                -5.1%
+                {outreachPending} pending
               </div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{metrics.outreachPending}</div>
+              <div className="text-2xl font-bold">{outreachPending}</div>
               <div className="text-sm text-muted-foreground">Pending Outreach</div>
             </div>
           </Card>
@@ -111,7 +154,7 @@ const Analytics = () => {
                   <span className="font-medium">Hot Leads</span>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold">{metrics.hotLeads}%</div>
+                  <div className="font-bold">{hotLeads}%</div>
                   <div className="text-sm text-muted-foreground">High Priority</div>
                 </div>
               </div>
@@ -119,7 +162,7 @@ const Analytics = () => {
               <div className="w-full bg-muted rounded-full h-2">
                 <div 
                   className="bg-red-500 h-2 rounded-full transition-all duration-1000"
-                  style={{ width: `${metrics.hotLeads}%` }}
+                  style={{ width: `${hotLeads}%` }}
                 />
               </div>
             </div>
@@ -131,7 +174,7 @@ const Analytics = () => {
                   <span className="font-medium">Warm Leads</span>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold">{metrics.warmLeads}%</div>
+                  <div className="font-bold">{warmLeads}%</div>
                   <div className="text-sm text-muted-foreground">Medium Priority</div>
                 </div>
               </div>
@@ -139,7 +182,7 @@ const Analytics = () => {
               <div className="w-full bg-muted rounded-full h-2">
                 <div 
                   className="bg-yellow-500 h-2 rounded-full transition-all duration-1000 delay-300"
-                  style={{ width: `${metrics.warmLeads}%` }}
+                  style={{ width: `${warmLeads}%` }}
                 />
               </div>
             </div>
@@ -151,7 +194,7 @@ const Analytics = () => {
                   <span className="font-medium">Cold Leads</span>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold">{metrics.coldLeads}%</div>
+                  <div className="font-bold">{coldLeads}%</div>
                   <div className="text-sm text-muted-foreground">Low Priority</div>
                 </div>
               </div>
@@ -159,7 +202,7 @@ const Analytics = () => {
               <div className="w-full bg-muted rounded-full h-2">
                 <div 
                   className="bg-blue-500 h-2 rounded-full transition-all duration-1000 delay-600"
-                  style={{ width: `${metrics.coldLeads}%` }}
+                  style={{ width: `${coldLeads}%` }}
                 />
               </div>
             </div>
@@ -175,29 +218,29 @@ const Analytics = () => {
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <div className="text-4xl font-bold bg-gradient-to-br from-primary to-accent bg-clip-text text-transparent">
-                  +247%
+                  {conversionRate}%
                 </div>
-                <div className="text-muted-foreground">Lead Growth This Quarter</div>
+                <div className="text-muted-foreground">Conversion Rate</div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-4 bg-muted/20 rounded-xl">
-                  <div className="text-2xl font-bold text-green-600">89%</div>
-                  <div className="text-sm text-muted-foreground">Email Open Rate</div>
+                  <div className="text-2xl font-bold text-green-600">{avgScore}</div>
+                  <div className="text-sm text-muted-foreground">Average Score</div>
                 </div>
                 <div className="text-center p-4 bg-muted/20 rounded-xl">
-                  <div className="text-2xl font-bold text-blue-600">34%</div>
-                  <div className="text-sm text-muted-foreground">Response Rate</div>
+                  <div className="text-2xl font-bold text-blue-600">{responded}</div>
+                  <div className="text-sm text-muted-foreground">Responses</div>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span>Conversion Funnel</span>
-                  <span className="text-muted-foreground">1,247 → 306</span>
+                  <span className="text-muted-foreground">{totalLeads} → {stats.converted || 0}</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
-                  <div className="h-full bg-gradient-primary rounded-full transition-all duration-1000 delay-1000" style={{ width: '24.5%' }} />
+                  <div className="h-full bg-gradient-primary rounded-full transition-all duration-1000 delay-1000" style={{ width: `${conversionRate}%` }} />
                 </div>
               </div>
             </div>
@@ -209,41 +252,70 @@ const Analytics = () => {
           <Card className="card-premium p-6 space-y-4">
             <h3 className="text-heading">Top Sources</h3>
             <div className="space-y-3">
-              {[
-                { source: "Website", count: 487, percentage: 39 },
-                { source: "LinkedIn", count: 325, percentage: 26 },
-                { source: "Referrals", count: 241, percentage: 19 },
-                { source: "Google Ads", count: 194, percentage: 16 }
-              ].map((item) => (
-                <div key={item.source} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-primary rounded-full" />
-                    <span className="text-sm">{item.source}</span>
+              {sourceStats.length > 0 ? (
+                sourceStats.map((item: { source: string; count: number; percentage: number; websites?: string }) => (
+                  <div key={item.source} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-primary rounded-full" />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{item.source}</span>
+                        {item.websites && (
+                          <span className="text-xs text-muted-foreground">{item.websites}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium">{item.count}</div>
+                      <div className="text-xs text-muted-foreground">{item.percentage}%</div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium">{item.count}</div>
-                    <div className="text-xs text-muted-foreground">{item.percentage}%</div>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground">No source data available</div>
+              )}
             </div>
           </Card>
 
           <Card className="card-premium p-6 space-y-4">
             <h3 className="text-heading">Recent Activity</h3>
             <div className="space-y-3">
-              {[
-                { action: "Lead captured", time: "2 min ago", color: "bg-green-500" },
-                { action: "Outreach sent", time: "15 min ago", color: "bg-blue-500" },
-                { action: "Lead qualified", time: "1 hour ago", color: "bg-yellow-500" },
-                { action: "Meeting scheduled", time: "2 hours ago", color: "bg-purple-500" }
-              ].map((item, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <div className={`w-2 h-2 ${item.color} rounded-full`} />
-                  <div className="flex-1 text-sm">{item.action}</div>
-                  <div className="text-xs text-muted-foreground">{item.time}</div>
-                </div>
-              ))}
+              {statsLoading ? (
+                <div className="text-center text-muted-foreground">Loading activity...</div>
+              ) : recentActivity.length > 0 ? (
+                recentActivity.map((activity: { 
+                  event_type: string; 
+                  created_at: string; 
+                  lead_name?: string; 
+                  lead_email?: string; 
+                }, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <div className={`w-2 h-2 ${
+                      activity.event_type === 'lead_captured' ? 'bg-green-500' :
+                      activity.event_type === 'outreach_sent' ? 'bg-blue-500' :
+                      activity.event_type === 'lead_scored' ? 'bg-yellow-500' :
+                      'bg-purple-500'
+                    } rounded-full`} />
+                    <div className="flex-1">
+                      <div className="text-sm">
+                        {activity.event_type === 'lead_captured' ? 'Lead captured' :
+                         activity.event_type === 'outreach_sent' ? 'Outreach sent' :
+                         activity.event_type === 'lead_scored' ? 'Lead qualified' :
+                         activity.event_type}
+                      </div>
+                      {activity.lead_name && (
+                        <div className="text-xs text-muted-foreground">
+                          {activity.lead_name} ({activity.lead_email})
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(activity.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground">No recent activity</div>
+              )}
             </div>
           </Card>
 
@@ -252,21 +324,21 @@ const Analytics = () => {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span>Monthly Target</span>
-                  <span>847 / 1,000</span>
+                  <span>Leads Target</span>
+                  <span>{totalLeads} / {Math.max(totalLeads, 100)}</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-gradient-primary h-2 rounded-full transition-all duration-1000" style={{ width: '84.7%' }} />
+                  <div className="bg-gradient-primary h-2 rounded-full transition-all duration-1000" style={{ width: `${Math.min((totalLeads / Math.max(totalLeads, 100)) * 100, 100)}%` }} />
                 </div>
               </div>
               
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span>Conversion Goal</span>
-                  <span>24.5% / 25%</span>
+                  <span>{conversionRate}% / 25%</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-gradient-secondary h-2 rounded-full transition-all duration-1000 delay-300" style={{ width: '98%' }} />
+                  <div className="bg-gradient-secondary h-2 rounded-full transition-all duration-1000 delay-300" style={{ width: `${Math.min((conversionRate / 25) * 100, 100)}%` }} />
                 </div>
               </div>
             </div>

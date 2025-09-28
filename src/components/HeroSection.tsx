@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, ArrowRight, Users, TrendingUp, Zap } from "lucide-react";
 import heroImage from "@/assets/hero-bg.jpg";
+import { useLeadSubmission } from "@/hooks/useApi";
 
 const HeroSection = () => {
   const [formData, setFormData] = useState({
@@ -17,18 +18,52 @@ const HeroSection = () => {
   });
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { submitLead, loading, error, success } = useLeadSubmission();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate form submission
-    toast({
-      title: "Lead Captured Successfully!",
-      description: "Redirecting to your personalized dashboard...",
-    });
     
-    setTimeout(() => {
-      navigate("/thank-you");
-    }, 1500);
+    if (!formData.name || !formData.email || !formData.message) {
+      toast({
+        title: "Please fill in all required fields",
+        description: "Name, email, and message are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.message.length < 10) {
+      toast({
+        title: "Message too short",
+        description: "Please provide at least 10 characters describing your problem.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const leadId = await submitLead({
+      name: formData.name,
+      email: formData.email,
+      company: formData.company || undefined,
+      problem_text: formData.message,
+    });
+
+    if (leadId) {
+      toast({
+        title: "Lead Captured Successfully!",
+        description: "Redirecting to your personalized dashboard...",
+      });
+      
+      setTimeout(() => {
+        navigate("/thank-you", { state: { leadId } });
+      }, 1500);
+    } else {
+      toast({
+        title: "Failed to submit lead",
+        description: error || "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -153,8 +188,9 @@ const HeroSection = () => {
                 <Button 
                   type="submit" 
                   className="btn-primary w-full text-lg py-6 group"
+                  disabled={loading}
                 >
-                  Get Started Free
+                  {loading ? "Submitting..." : "Get Started Free"}
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </form>

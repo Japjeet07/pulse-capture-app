@@ -1,11 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin';
-}
+import { apiService } from '@/services/api';
+import { User } from '@/config/api';
 
 interface AuthContextType {
   user: User | null;
@@ -17,34 +12,31 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock admin user for demo purposes
-const MOCK_ADMIN = {
-  id: '1',
-  email: 'admin@leadcapture.com',
-  name: 'Admin User',
-  role: 'admin' as const
-};
-
-// Mock credentials
-const ADMIN_CREDENTIALS = {
-  email: 'admin@leadcapture.com',
-  password: 'admin123'
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is already logged in on app start
-    const storedAuth = localStorage.getItem('auth-user');
-    if (storedAuth) {
+    const storedToken = localStorage.getItem('auth-token');
+    const storedUser = localStorage.getItem('auth-user');
+    
+    console.log('Auth check - Token:', storedToken ? 'Present' : 'Missing');
+    console.log('Auth check - User:', storedUser ? 'Present' : 'Missing');
+    
+    if (storedToken && storedUser) {
       try {
-        const parsedUser = JSON.parse(storedAuth);
+        const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
+        apiService.setToken(storedToken);
+        console.log('User authenticated on startup:', parsedUser.email);
       } catch (error) {
+        console.error('Auth restoration failed:', error);
+        localStorage.removeItem('auth-token');
         localStorage.removeItem('auth-user');
       }
+    } else {
+      console.log('No stored auth found');
     }
     setIsLoading(false);
   }, []);
@@ -52,15 +44,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Check credentials
-    if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-      setUser(MOCK_ADMIN);
-      localStorage.setItem('auth-user', JSON.stringify(MOCK_ADMIN));
-      setIsLoading(false);
-      return true;
+    try {
+      const response = await apiService.login(email, password);
+      
+      if (response.token) {
+        setUser(response.user);
+        apiService.setToken(response.token);
+        localStorage.setItem('auth-user', JSON.stringify(response.user));
+        setIsLoading(false);
+        return true;
+      }
+    } catch (error) {
+      console.error('Login error:', error);
     }
     
     setIsLoading(false);
@@ -69,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    apiService.setToken(null);
+    localStorage.removeItem('auth-token');
     localStorage.removeItem('auth-user');
   };
 

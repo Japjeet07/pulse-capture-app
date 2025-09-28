@@ -1,0 +1,445 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/send-outreach",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ad65d482-de4f-4c26-a875-5d6a65f7434f",
+      "name": "Webhook B",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        48
+      ],
+      "webhookId": "4ceeb3ba-6cfc-4e2f-bc4a-d6ecc1d963d8"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM leads WHERE id = '{{ $json.body.lead_id }}'",
+        "options": {}
+      },
+      "id": "2bef3674-5c84-4b1a-9710-1e39f720bddb",
+      "name": "Fetch Lead from DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -1008,
+        48
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "QY3Sy9JvtdzWJPi8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate prompt with actual values\nconst leadData = $input.first().json;\n\nconst prompt = `You are Japjeet Grewal from 26 Ideas. Write a professional outreach email to ${leadData.name} at ${leadData.company} about their problem: ${leadData.problem_text}.\n\nCRITICAL INSTRUCTIONS:\n- You MUST use your real name: Japjeet Grewal\n- You MUST use your real company: 26 Ideas\n- NEVER use [Your Name] or [Your Company] - use the actual names\n- You are reaching out TO ${leadData.company} as a potential client\n- You are offering solutions from 26 Ideas to help them\n\nEmail format:\n1. Start with 'Hi ${leadData.name}'\n2. Introduce yourself as 'I'm Japjeet Grewal from 26 Ideas'\n3. Address their problem: ${leadData.problem_text}\n4. Offer solutions from 26 Ideas\n5. Ask for a call/meeting\n6. End with 'Best regards, Japjeet Grewal'\n\nWrite the complete email body. Use your real name and company, not placeholders.`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    leadData: leadData\n  }\n}];"
+      },
+      "id": "66327a37-e34b-48c9-9c51-2231ae3e5a82",
+      "name": "Generate Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT openai_api_key FROM settings ORDER BY created_at DESC LIMIT 1",
+        "options": {}
+      },
+      "id": "fetch-openai-key-outreach",
+      "name": "Fetch OpenAI Key",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        144
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "QY3Sy9JvtdzWJPi8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge the original data with the OpenAI key from database\nconst originalData = $('Generate Prompt').item.json;\nconst openaiData = $input.first().json;\n\nreturn [{\n  json: {\n    ...originalData,\n    openai_api_key: openaiData.openai_api_key\n  }\n}];"
+      },
+      "id": "merge-openai-data",
+      "name": "Merge Data for OpenAI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -600,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "complete",
+        "model": "gpt-3.5-turbo-instruct",
+        "prompt": "={{ $json.prompt }}",
+        "apiKey": "={{ $json.openai_api_key }}",
+        "options": {
+          "maxTokens": 800,
+          "temperature": 0.7
+        }
+      },
+      "id": "ai-node-id",
+      "name": "Generate Outreach Email",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        48
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "2PQamqyqvLHtU4nG",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine DB + AI result into one JSON\nconst leadData = $items(\"Generate Prompt\")[0].json.leadData;\nconst aiResult = $input.first().json;\n\nlet emailContent;\nif (aiResult.choices && aiResult.choices[0] && aiResult.choices[0].message) {\n  emailContent = aiResult.choices[0].message.content;\n} else if (aiResult.text && aiResult.text.trim() !== '') {\n  emailContent = aiResult.text;\n} else {\n  // Use a proper template with actual values instead of template variables\n  emailContent = `Hi ${leadData.name},\n\nI'm Japjeet Grewal from 26 Ideas. I saw your message about ${leadData.problem_text} and I believe I can help you solve this challenge.\n\nAt 26 Ideas, we have experience with automation solutions that can centralize and analyze customer feedback from multiple channels. This could save you hours every week and give you better insights into your customer needs.\n\nWould you be available for a quick 15-minute call this week to discuss how we can implement this solution for ${leadData.company}?\n\nBest regards,\nJapjeet Grewal`;\n}\n\n// Keep as plain text - no HTML conversion needed\n\nreturn [{\n  json: {\n    lead_id: leadData.id,\n    name: leadData.name,\n    email: leadData.email,\n    company: leadData.company,\n    problem_text: leadData.problem_text,\n    email_content: emailContent,\n    email_preview: emailContent.substring(0,500)\n  }\n}];"
+      },
+      "id": "29cc4bf5-0b6f-4a4c-9b37-3194965b35c4",
+      "name": "Format Email Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT slack_webhook FROM settings ORDER BY created_at DESC LIMIT 1",
+        "options": {}
+      },
+      "id": "fetch-slack-webhook-outreach",
+      "name": "Fetch Slack Webhook",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        144
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "QY3Sy9JvtdzWJPi8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge the original outreach data with the Slack webhook from database\nconst originalData = $('Format Email Content').item.json;\nconst slackData = $input.first().json;\n\nconsole.log('Slack webhook from database:', slackData.slack_webhook);\n\n// Check if Slack webhook exists\nif (!slackData.slack_webhook || slackData.slack_webhook.trim() === '') {\n  console.log('No Slack webhook configured, skipping Slack notification');\n  return [];\n}\n\nreturn [{\n  json: {\n    ...originalData,\n    slack_webhook: slackData.slack_webhook\n  }\n}];"
+      },
+      "id": "merge-slack-data-outreach",
+      "name": "Merge Data for Slack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.slack_webhook }}",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"📧 Outreach Email Sent\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"📧 Outreach Email Sent\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Lead:* {{ $json.name }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Email:* {{ $json.email }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Company:* {{ $json.company }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Problem:* {{ $json.problem_text }}\"\n        }\n      ]\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Email Content:*\\n{{ $json.email_content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n      }\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"View in Dashboard\"\n          },\n          \"url\": \"{{ $env.FRONTEND_URL || 'http://localhost:5173' }}/dashboard\",\n          \"style\": \"primary\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "slack-outreach-notification",
+      "name": "Send Outreach Slack Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -96,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM || 'noreply@pulsecapture.com' }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ `Re: ${$json.company} inquiry` }}",
+        "text": "={{$json.email_content}}",
+        "options": {}
+      },
+      "id": "960cdba0-f0dd-4e06-add4-54e560a7d0cb",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -64
+      ],
+      "webhookId": "4ac18dfd-7f77-4274-90d8-9f4e6e268c11",
+      "credentials": {
+        "smtp": {
+          "id": "A3psBvnQxHzpfrgw",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO outreach (lead_id, email_subject, email_body, status, sent_at) VALUES ('{{ $json.lead_id }}', 'Re: {{ $json.company }} inquiry', '{{ $json.email_content.replace(/'/g, \"''\") }}', 'sent', NOW())",
+        "options": {}
+      },
+      "id": "e15d6a33-c083-41d8-b47d-ab16bc9a32f5",
+      "name": "Log Outreach to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        144
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "QY3Sy9JvtdzWJPi8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads SET status='outreach_sent', outreach_sent_at=NOW(), outreach_preview='{{ $json.email_preview.replace(/'/g, \"''\") }}' WHERE id='{{ $json.lead_id }}'",
+        "options": {}
+      },
+      "id": "8664e309-498d-4b25-8164-6c4628a5101c",
+      "name": "Update Lead Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        128,
+        48
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "QY3Sy9JvtdzWJPi8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO events (lead_id, event_type, event_data, created_at) VALUES ('{{ $json.lead_id }}', 'outreach_sent', '{{ JSON.stringify({email_sent: true, timestamp: new Date().toISOString()}) }}', NOW())",
+        "options": {}
+      },
+      "id": "06ffabe8-350a-42ca-b2a0-cec8c2b4e9cf",
+      "name": "Log Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        352,
+        48
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "QY3Sy9JvtdzWJPi8",
+          "name": "Postgres account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Outreach sent successfully\",\n  \"lead_id\": \"{{ $json.lead_id }}\",\n  \"email_subject\": \"Re: {{ $json.company }} inquiry\",\n  \"email_body\": \"{{ $json.email_content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"email_sent\": true\n}",
+        "options": {}
+      },
+      "id": "06689f51-6e21-4c78-aa9a-557e052b384f",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        576,
+        48
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook B": {
+      "main": [
+        [
+          {
+            "node": "Fetch Lead from DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Lead from DB": {
+      "main": [
+        [
+          {
+            "node": "Generate Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Prompt": {
+      "main": [
+        [
+          {
+            "node": "Fetch OpenAI Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch OpenAI Key": {
+      "main": [
+        [
+          {
+            "node": "Merge Data for OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Data for OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Generate Outreach Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Outreach Email": {
+      "main": [
+        [
+          {
+            "node": "Format Email Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email Content": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Slack Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Outreach to DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Lead Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Outreach to DB": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        []
+      ]
+    },
+    "Fetch Slack Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merge Data for Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Data for Slack": {
+      "main": [
+        [
+          {
+            "node": "Send Outreach Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Outreach Slack Notification": {
+      "main": [
+        []
+      ]
+    },
+    "Log Outreach to DB": {
+      "main": [
+        []
+      ]
+    },
+    "Update Lead Status": {
+      "main": [
+        []
+      ]
+    },
+    "Log Event": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e8350a534f76789e8b279c93b8fa59712c62cf6419f2a593474c8c6b4efe16e7"
+  }
+}

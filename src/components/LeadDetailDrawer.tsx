@@ -1,4 +1,5 @@
-import { useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,24 +17,17 @@ import {
   Star,
   Clock
 } from "lucide-react";
-
-interface Lead {
-  id: string;
-  name: string;
-  email: string;
-  company: string;
-  message: string;
-  status: "hot" | "warm" | "cold";
-  score: number;
-  source: string;
-  createdAt: string;
-  lastActivity: string;
-}
+import { useOutreach } from "@/hooks/useApi";
+import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { Lead } from "@/config/api";
 
 interface LeadDetailDrawerProps {
   lead: Lead | null;
   open: boolean;
   onClose: () => void;
+  onOutreachSent?: () => void; // Callback to refresh data
 }
 
 const getStatusColor = (status: string) => {
@@ -52,22 +46,72 @@ const timeline = [
   { action: "AI score calculated", time: "30 minutes ago", icon: Star },
 ];
 
-const LeadDetailDrawer = ({ lead, open, onClose }: LeadDetailDrawerProps) => {
-  const [isSending, setIsSending] = useState(false);
+const LeadDetailDrawer = ({ lead, open, onClose, onOutreachSent }: LeadDetailDrawerProps) => {
+  const { sendOutreach, loading: outreachLoading, error: outreachError } = useOutreach();
+  const { toast } = useToast();
+  const { user, isAuthenticated } = useAuth();
+  const [outreachData, setOutreachData] = useState<any>(null);
+  const [loadingOutreach, setLoadingOutreach] = useState(false);
 
-  const handleSendOutreach = () => {
-    setIsSending(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsSending(false);
+  const handleSendOutreach = async () => {
+    if (!lead) return;
+    
+    console.log('Sending outreach for lead:', lead.id);
+    console.log('User authenticated:', isAuthenticated, 'User:', user?.email);
+    
+    const result = await sendOutreach(lead.id);
+    if (result) {
+      toast({
+        title: "Outreach Sent Successfully!",
+        description: "The outreach email has been sent to the lead.",
+      });
+      
+      // Refresh the leads data to show updated status
+      if (onOutreachSent) {
+        onOutreachSent();
+      }
+      
       onClose();
-    }, 2000);
+    } else {
+      toast({
+        title: "Failed to Send Outreach",
+        description: outreachError || "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+
+  const fetchOutreachData = async () => {
+    if (!lead || lead.status !== 'outreach_sent') return;
+    
+    setLoadingOutreach(true);
+    try {
+      const response = await apiService.getOutreachData(lead.id);
+      if (response.success && response.data) {
+        setOutreachData(response.data);
+      } else {
+        console.error('Failed to fetch outreach data:', response.error);
+      }
+    } catch (error) {
+      console.error('Error fetching outreach data:', error);
+    } finally {
+      setLoadingOutreach(false);
+    }
+  };
+
+  // Fetch outreach data when drawer opens and lead has outreach_sent status
+  React.useEffect(() => {
+    if (open && lead?.status === 'outreach_sent') {
+      fetchOutreachData();
+    }
+  }, [open, lead?.status]);
+
 
   if (!lead) return null;
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
+    <>
+      <Sheet open={open} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-2xl p-0 overflow-y-auto">
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -97,7 +141,7 @@ const LeadDetailDrawer = ({ lead, open, onClose }: LeadDetailDrawerProps) => {
             {/* AI Score & Quick Actions */}
             <div className="grid grid-cols-2 gap-4">
               <Card className="p-4 text-center hover-lift">
-                <div className="text-2xl font-bold text-primary">{lead.score}/100</div>
+                <div className="text-2xl font-bold text-primary">{lead.fit_score || 0}/100</div>
                 <div className="text-sm text-muted-foreground">AI Score</div>
               </Card>
               <Card className="p-4 text-center hover-lift">
@@ -113,7 +157,7 @@ const LeadDetailDrawer = ({ lead, open, onClose }: LeadDetailDrawerProps) => {
                 Original Message
               </h3>
               <Card className="p-4 bg-muted/30">
-                <p className="text-body leading-relaxed">{lead.message}</p>
+                <p className="text-body leading-relaxed">{lead.problem_text}</p>
               </Card>
             </div>
 
@@ -144,6 +188,50 @@ const LeadDetailDrawer = ({ lead, open, onClose }: LeadDetailDrawerProps) => {
 
             <Separator />
 
+            {/* Sent Email Content */}
+            {lead.status === 'outreach_sent' && (
+              <div className="space-y-3">
+                <h3 className="text-heading flex items-center gap-2">
+                  <Mail className="w-5 h-5" />
+                  Sent Outreach Email
+                </h3>
+                <Card className="p-4 bg-muted/30">
+                  {loadingOutreach ? (
+                    <div className="text-center py-4">
+                      <div className="text-muted-foreground">Loading email content...</div>
+                    </div>
+                  ) : outreachData ? (
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-medium text-sm text-muted-foreground mb-1">Subject:</h4>
+                        <p className="text-sm bg-muted/50 p-2 rounded">
+                          {outreachData.email_subject || `Re: ${lead.company} inquiry`}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm text-muted-foreground mb-1">Email Content:</h4>
+                        <div className="bg-muted/50 p-3 rounded max-h-64 overflow-y-auto">
+                          <pre className="whitespace-pre-wrap text-sm leading-relaxed">
+                            {outreachData.email_body || 'No email content available'}
+                          </pre>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Mail className="w-3 h-3" />
+                        Sent on {outreachData.sent_at ? new Date(outreachData.sent_at).toLocaleString() : 'Unknown date'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <div className="text-muted-foreground">No email content available</div>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            )}
+
+            <Separator />
+
             {/* Timeline */}
             <div className="space-y-3">
               <h3 className="text-heading flex items-center gap-2">
@@ -169,20 +257,22 @@ const LeadDetailDrawer = ({ lead, open, onClose }: LeadDetailDrawerProps) => {
           {/* Footer Actions */}
           <div className="p-6 border-t bg-muted/20 space-y-4">
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button 
-                onClick={handleSendOutreach}
-                disabled={isSending}
-                className="btn-primary flex-1 group"
-              >
-                {isSending ? (
-                  "Sending..."
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" />
-                    Send Outreach
-                  </>
-                )}
-              </Button>
+              {lead.status !== 'outreach_sent' && (
+                <Button 
+                  onClick={handleSendOutreach}
+                  disabled={outreachLoading}
+                  className="btn-primary flex-1 group"
+                >
+                  {outreachLoading ? (
+                    "Sending..."
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" />
+                      Send Outreach
+                    </>
+                  )}
+                </Button>
+              )}
               
               <Button variant="outline" className="hover-lift">
                 <ExternalLink className="w-4 h-4 mr-2" />
@@ -191,12 +281,13 @@ const LeadDetailDrawer = ({ lead, open, onClose }: LeadDetailDrawerProps) => {
             </div>
             
             <div className="text-xs text-center text-muted-foreground">
-              Last activity: {lead.lastActivity}
+              Last activity: {new Date(lead.last_activity_at).toLocaleDateString()}
             </div>
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 };
 

@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import AdminHeader from "@/components/AdminHeader";
 import LeadDetailDrawer from "@/components/LeadDetailDrawer";
+import { useLeads, useStats } from "@/hooks/useApi";
+import { Lead } from "@/config/api";
 
 // Mock data for leads
 const mockLeads = [
@@ -81,33 +83,50 @@ const mockLeads = [
 
 const filters = ["All", "Hot", "Warm", "Cold"];
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "hot": return "bg-red-500/10 text-red-500 border-red-500/20";
-    case "warm": return "bg-yellow-500/10 text-yellow-600 border-yellow-500/20";
-    case "cold": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
+const getStatusColor = (fitBand: string) => {
+  switch (fitBand) {
+    case "High": return "bg-red-500/10 text-red-500 border-red-500/20";
+    case "Medium": return "bg-yellow-500/10 text-yellow-600 border-yellow-500/20";
+    case "Low": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
     default: return "bg-muted text-muted-foreground";
   }
 };
 
 const Dashboard = () => {
-  const [selectedLead, setSelectedLead] = useState<typeof mockLeads[0] | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [activeFilter, setActiveFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredLeads = mockLeads.filter(lead => {
-    const matchesFilter = activeFilter === "All" || lead.status.toLowerCase() === activeFilter.toLowerCase();
-    const matchesSearch = lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         lead.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         lead.email.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
+  // Map filter names to fit_band values
+  const getFitBandFromFilter = (filter: string) => {
+    switch (filter) {
+      case "Hot": return "High";
+      case "Warm": return "Medium";
+      case "Cold": return "Low";
+      default: return undefined;
+    }
+  };
+
+  // API hooks
+  const { data: leadsData, loading: leadsLoading, error: leadsError, refetch: refetchLeads } = useLeads({
+    page: currentPage,
+    limit: 50,
+    fit_band: activeFilter === "All" ? undefined : getFitBandFromFilter(activeFilter),
+    search: searchQuery || undefined,
+    sort_by: 'created_at',
+    sort_order: 'desc'
   });
 
-  const stats = {
-    total: mockLeads.length,
-    hot: mockLeads.filter(l => l.status === "hot").length,
-    warm: mockLeads.filter(l => l.status === "warm").length,
-    cold: mockLeads.filter(l => l.status === "cold").length,
+  const { data: statsData, loading: statsLoading } = useStats();
+
+  const leads = leadsData?.leads || [];
+  const stats = statsData?.stats || {
+    total_leads: 0,
+    high_priority: 0,
+    medium_priority: 0,
+    low_priority: 0,
+    new_leads: 0
   };
 
   return (
@@ -119,55 +138,55 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="card-float p-6 space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{stats.total_leads}</div>
               <Users className="w-8 h-8 text-primary" />
             </div>
             <div className="text-sm text-muted-foreground">Total Leads</div>
             <div className="flex items-center gap-1 text-xs text-green-600">
               <ArrowUpRight className="w-3 h-3" />
-              +12% this week
+              {stats.new_leads || 0} new
             </div>
           </Card>
 
           <Card className="card-float p-6 space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-red-500">{stats.hot}</div>
+              <div className="text-2xl font-bold text-red-500">{stats.high_priority}</div>
               <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center">
                 <div className="w-3 h-3 bg-red-500 rounded-full" />
               </div>
             </div>
-            <div className="text-sm text-muted-foreground">Hot Leads</div>
+            <div className="text-sm text-muted-foreground">High Priority</div>
             <div className="flex items-center gap-1 text-xs text-green-600">
               <ArrowUpRight className="w-3 h-3" />
-              +8% this week
+              {Math.round((stats.high_priority / Math.max(stats.total_leads, 1)) * 100)}%
             </div>
           </Card>
 
           <Card className="card-float p-6 space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-yellow-600">{stats.warm}</div>
+              <div className="text-2xl font-bold text-yellow-600">{stats.medium_priority}</div>
               <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center">
                 <div className="w-3 h-3 bg-yellow-500 rounded-full" />
               </div>
             </div>
-            <div className="text-sm text-muted-foreground">Warm Leads</div>
+            <div className="text-sm text-muted-foreground">Medium Priority</div>
             <div className="flex items-center gap-1 text-xs text-green-600">
               <ArrowUpRight className="w-3 h-3" />
-              +15% this week
+              {Math.round((stats.medium_priority / Math.max(stats.total_leads, 1)) * 100)}%
             </div>
           </Card>
 
           <Card className="card-float p-6 space-y-2">
             <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-blue-500">{stats.cold}</div>
+              <div className="text-2xl font-bold text-blue-500">{stats.low_priority}</div>
               <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
                 <div className="w-3 h-3 bg-blue-500 rounded-full" />
               </div>
             </div>
-            <div className="text-sm text-muted-foreground">Cold Leads</div>
+            <div className="text-sm text-muted-foreground">Low Priority</div>
             <div className="flex items-center gap-1 text-xs text-red-600">
               <ArrowUpRight className="w-3 h-3 rotate-180" />
-              -3% this week
+              {Math.round((stats.low_priority / Math.max(stats.total_leads, 1)) * 100)}%
             </div>
           </Card>
         </div>
@@ -207,78 +226,91 @@ const Dashboard = () => {
         {/* Leads Table */}
         <Card className="card-premium overflow-hidden">
           <div className="p-6 border-b border-border/50">
-            <h2 className="text-heading">Leads ({filteredLeads.length})</h2>
+            <h2 className="text-heading">Leads ({leads.length})</h2>
           </div>
           
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted/20">
-                <tr>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Lead</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Company</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Score</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Source</th>
-                  <th className="text-left p-4 text-sm font-medium text-muted-foreground">Activity</th>
-                  <th className="text-right p-4 text-sm font-medium text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLeads.map((lead) => (
-                  <tr 
-                    key={lead.id} 
-                    className="border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer"
-                    onClick={() => setSelectedLead(lead)}
-                  >
-                    <td className="p-4">
-                      <div className="space-y-1">
-                        <div className="font-medium">{lead.name}</div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {lead.email}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="font-medium">{lead.company}</div>
-                    </td>
-                    <td className="p-4">
-                      <Badge className={getStatusColor(lead.status)}>
-                        {lead.status.toUpperCase()}
-                      </Badge>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="font-medium">{lead.score}</div>
-                        <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-gradient-primary rounded-full transition-all duration-500"
-                            style={{ width: `${lead.score}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-sm bg-accent/30 text-accent-foreground px-2 py-1 rounded-md">
-                        {lead.source}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Calendar className="w-3 h-3" />
-                        {lead.lastActivity}
-                      </div>
-                    </td>
-                    <td className="p-4 text-right">
-                      <Button variant="ghost" size="icon" className="hover-lift">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </td>
+          {leadsLoading ? (
+            <div className="p-8 text-center">
+              <div className="text-muted-foreground">Loading leads...</div>
+            </div>
+          ) : leadsError ? (
+            <div className="p-8 text-center">
+              <div className="text-red-500">Error loading leads: {leadsError}</div>
+              <Button onClick={() => refetchLeads()} className="mt-4">
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/20">
+                  <tr>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Lead</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Company</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Score</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Source</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Activity</th>
+                    <th className="text-right p-4 text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {leads.map((lead) => (
+                    <tr 
+                      key={lead.id} 
+                      className="border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer"
+                      onClick={() => setSelectedLead(lead)}
+                    >
+                      <td className="p-4">
+                        <div className="space-y-1">
+                          <div className="font-medium">{lead.name}</div>
+                          <div className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {lead.email}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="font-medium">{lead.company || 'N/A'}</div>
+                      </td>
+                      <td className="p-4">
+                        <Badge className={getStatusColor(lead.fit_band || 'Low')}>
+                          {lead.fit_band || 'LOW'}
+                        </Badge>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">{lead.fit_score || 0}</div>
+                          <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-primary rounded-full transition-all duration-500"
+                              style={{ width: `${lead.fit_score || 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-sm bg-accent/30 text-accent-foreground px-2 py-1 rounded-md">
+                          {lead.source}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(lead.created_at).toLocaleDateString()}
+                        </div>
+                      </td>
+                      <td className="p-4 text-right">
+                        <Button variant="ghost" size="icon" className="hover-lift">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -287,6 +319,10 @@ const Dashboard = () => {
         lead={selectedLead}
         open={!!selectedLead}
         onClose={() => setSelectedLead(null)}
+        onOutreachSent={() => {
+          // Refresh leads data after outreach is sent
+          refetchLeads();
+        }}
       />
     </div>
   );
